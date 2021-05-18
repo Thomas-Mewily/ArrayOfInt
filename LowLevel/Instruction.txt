@@ -1,0 +1,149 @@
+﻿
+SS mean Sugar Syntax (can be crafted with more operation)
+LL mean Low Level. LL != SS
+
+The memory contain an array of integer that contain all the data of the program (the script, the variables, the register, the constant, etc...)
+Each slot of the memory is a int.
+
+
+Value :
+
+A value block is composed of 2 slot :
+- The left slot ( left idx is pair )
+- The right slot ( left idx is impair )
+
+The left slot contain the type of the slot :
+0 = Free	
+1 = FixedPointer
+2 = RelativePointer		(SS) // ~
+4 = CpuPointer
+15 = Int //Aka value
+
+The right slot contain the value of the slot.
+0 = random number. Avoid using it
+1 = The adress of the pointed element inside the memory
+2 = The adress of the pointed element inside the memory relative to the thread idx
+4 = Like a pointer, but the adress of the pointed element is relative to the cpu register
+
+15 = The value of the int
+
+A common way of passing a block is to pass the pointer (int value) of the left slot of the block.
+
+
+int GetInt(int leftSlot)
+{
+	switch(Memory.Get(leftSlot))
+	{
+		case 1 : //It is a pointer
+			return GetInt(Memory.Get(leftSlot+1));
+			break;
+		case 2 : //It is a pointer relative to the idx
+			return GetInt(Memory.Get(leftSlot+1)+idx);
+			break;
+		case 4 : //It is a pointer relative to the register
+			return GetInt(Memory.Get(leftSlot+1)+Register);
+			break;
+		case 15 : //It is a int
+			return Memory.Get(leftSlot+1);
+			break;
+		default:
+			crash :(
+	}
+}
+
+
+
+
+CPU :
+
+Know :
+- Where his register begin in the memory (aka cpu register idx begin) 		: Register 
+- (Property) The current Idx of the executing code : Memory.Get(Register) 	: Idx 			(aka the current slot index)
+
+Each instruction increase the idx of the CPU depending on how many arguments it have
+A common way of passing an instruction is to pass the pointer (int value) where the beginning of the instruction begin
+
+
+
+<name> mean it is a pointer to a value block.
+
+V.0.03 : 
+
+The Single Instruction To Rull Them All:
+
+
+<value mode> <value left> <value right> <pointer result> 
+
+Where :
+value mode : the type of operation
+value left  : the left  value where to operation will be apply (aka 'a')
+value right : the right value where to operation will be apply (aka 'b')
+pointer result : the adress where the result will be stored
+
+
+value mode (default : SS ) :
+{
+	copy 	LW //Copy a in b			result is useless
+	swap	SS //Change the 2 value		result is useless
+	goto	LW //Change the CPU Idx		b & result are useless
+	dir		SS //Change the direction of the cpu (up, down right, left). He will move from |MoveX|+|MoveY|
+}
+
+// Calcul :
+{
+	+		LL
+	-		LL
+	*		LL
+	/		LL
+	%		LL
+	^		LL
+	<<		LL
+	>>		LL
+	//Todo, cos/sin...
+}
+
+// Comparaison :
+{
+	==			SS // Can be done with a subtraction (a-b == 0 is identical)
+	bool		SS // return 0 is a == b, else return 1
+	<			LL //Not sure, maybe SS ?
+	<=			SS
+	>			..
+	>=
+	!=
+	!=			SS
+	// - (unary can be made using a 0 constant : 0-a )
+}
+
+   
+// Miscellaneous :
+{
+	clock		LL // put the current clock time in result.					a & b are useless
+	wait		SS // a in ms. 												b & result are useless
+	create		LL // Create a new cpu that use a as Register. 				b & result are useless
+	print		LL // print a single caratere (UNICODE) in the C# console	b & result are useless
+	ask			LL // Ask a single caratere in the console					a & b are useless
+}
+
+//To kill the cpu, just set his Idx to 0 (or a negative number).
+
+
+
+
+
+This instruction :
+Can be used to make regular copy, but also operation, goto, kill the cpu/create a new cpu...
+
+
+
+Some stat :
+4 * int / instruction.
+128 bit / instruction.
+So all instruction alway have the same size (easier debugging)
+
+
+
+
+This single instruction can possibily be simplified in <value mode> <value left> <value right & result>
+That can be translated in <value mode> <value left> <value right> LastPointer(<value right>), but it would involve a lot of copy
+( 1 copy before doing an operation (+-*/%...) to copy the right operande inside the a cpu register, and 1 other copy to copy the result (the cpu register) inside another slot). I choose to stick with 4 int because it is a multiply of 2 (and to reduce my insanity because debugging would be harder, and the code will be way longuer with 3 arguments(*3 I guess ?))
